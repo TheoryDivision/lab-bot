@@ -12,6 +12,7 @@ type Member struct {
 	LastName  string   `yaml:"last_name"`
 	Subgroup  string   `yaml:"subgroup"`
 	UserID    string   `yaml:"userID"`
+	Birthday  string   `yaml:"birthday"`
 	Roles     []string `yaml:"roles"`
 }
 

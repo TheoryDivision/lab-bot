@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path"
 
 	log "github.com/sirupsen/logrus"
 
@@ -15,12 +16,16 @@ import (
 var (
 	membersFile string
 	secretsFile string
+	botName     string
+	botChannel  string
 )
 
 func init() {
 	logging.Setup()
-	flag.StringVar(&membersFile, "members", "members.yml", "Location of the members file")
-	flag.StringVar(&secretsFile, "secrets", "secrets.yml", "Location of the secrets file")
+	exePath := logging.FindExeDir()
+	flag.StringVar(&membersFile, "members", path.Join(exePath, "members.yml"), "Location of the members file")
+	flag.StringVar(&secretsFile, "secrets", path.Join(exePath, "secrets.yml"), "Location of the secrets file")
+	flag.StringVar(&botChannel, "channel", "lab-bot-channel", "Name of the bot channel")
 }
 
 func main() {
@@ -33,11 +38,11 @@ func main() {
 	files.CheckFile(secretsFile)
 
 	log.Info("Loading config files.")
-	// members := config.ParseMembers(membersFile)
+	members := config.ParseMembers(membersFile)
 	secrets := config.ParseSecrets(secretsFile)
 	slack.CheckSecrets(secrets)
 
-	slackClient := slack.CreateClient(secrets)
+	slackClient := slack.CreateClient(secrets, members, botChannel)
 	go slackClient.EventProcessor()
 	slackClient.RunSocketMode()
 }
