@@ -67,6 +67,20 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 	jobs := make(map[string]job)
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
+	controllerLogger := jobLogger.WithField("jobtype", "controller")
+
+	cC := &controllerJob{
+		labJob: labJob{
+			name:   "Coffee Controller",
+			status: false,
+			desc:   "Power control for the espresso machine in the lab",
+			logger: controllerLogger,
+		},
+		powerStatus: false,
+		logger:      controllerLogger.WithField("job", "coffeeController"),
+	}
+
+	jobs["coffee"] = cC
 
 	return &JobHandler{
 		jobs:   jobs,
