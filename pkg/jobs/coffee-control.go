@@ -4,11 +4,29 @@ import (
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
-func (cj *controllerJob) gpioInit() {
-	err := rpio.Open()
+const pin = 17
+
+func pinInit() (err error) {
+	err = rpio.Open()
 	if err != nil {
-		cj.logger.WithField("error", err).Error("Cannot access GPIO")
-
+		return err
 	}
+	p := rpio.Pin(pin)
+	p.Output()
+	p.Low()
+	return nil
+}
 
+func pinOn() (err error) {
+	p := rpio.Pin(pin)
+	p.Output()
+	p.High()
+	return nil
+}
+
+func pinOff() (err error) {
+	p := rpio.Pin(pin)
+	p.Output()
+	p.Low()
+	return nil
 }

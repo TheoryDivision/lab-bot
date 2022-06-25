@@ -86,6 +86,9 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 			messenger: m,
 		},
 		powerStatus: false,
+		customInit:  pinInit,
+		customOn:    pinOn,
+		customOff:   pinOff,
 		logger:      controllerLogger.WithField("job", "coffeeController"),
 	}
 
