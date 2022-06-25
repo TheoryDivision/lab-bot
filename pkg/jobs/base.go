@@ -71,10 +71,11 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 
 	cC := &controllerJob{
 		labJob: labJob{
-			name:   "Coffee Controller",
-			status: false,
-			desc:   "Power control for the espresso machine in the lab",
-			logger: controllerLogger,
+			name:      "Coffee Controller",
+			status:    false,
+			desc:      "Power control for the espresso machine in the lab",
+			logger:    controllerLogger,
+			messenger: m,
 		},
 		powerStatus: false,
 		logger:      controllerLogger.WithField("job", "coffeeController"),
