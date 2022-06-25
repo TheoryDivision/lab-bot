@@ -89,7 +89,7 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 	}
 }
 
-type ci func(*JobHandler)
+type ci func(job)
 
 var customInit = map[string]ci{}
 
@@ -97,7 +97,7 @@ func (jh *JobHandler) InitJobs() {
 	for job := range jh.jobs {
 		jh.jobs[job].init()
 		if f, pres := customInit[job]; pres {
-			f(jh)
+			f(jh.jobs[job])
 		}
 	}
 }
