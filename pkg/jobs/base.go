@@ -3,7 +3,7 @@ package jobs
 import (
 	// "github.com/go-co-op/gocron"
 
-	"strings"
+  "strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack/slackevents"
@@ -76,6 +76,24 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 	jobs := make(map[string]job)
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
+	controllerLogger := jobLogger.WithField("jobtype", "controller")
+
+	cC := &controllerJob{
+		labJob: labJob{
+			name:      "Coffee Controller",
+			status:    false,
+			desc:      "Power control for the espresso machine in the lab",
+			logger:    controllerLogger,
+			messenger: m,
+		},
+		powerStatus: false,
+		customInit:  pinInit,
+		customOn:    pinOn,
+		customOff:   pinOff,
+		logger:      controllerLogger.WithField("job", "coffeeController"),
+	}
+
+	jobs["coffee"] = cC
 
 	return &JobHandler{
 		jobs:   jobs,
