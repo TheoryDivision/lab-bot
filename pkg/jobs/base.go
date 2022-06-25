@@ -3,6 +3,8 @@ package jobs
 import (
 	// "github.com/go-co-op/gocron"
 
+  "strings"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack/slackevents"
 
@@ -42,7 +44,7 @@ type job interface {
 	init()
 	enable()
 	disable()
-	commandProcessor(ev *slackevents.AppMentionEvent)
+	commandProcessor(c slack.CommandInfo)
 }
 
 type controllerJob struct {
@@ -62,7 +64,7 @@ type controller interface {
 	turnOn(ev *slackevents.AppMentionEvent)
 	turnOff(ev *slackevents.AppMentionEvent)
 	getPowerStatus(ev *slackevents.AppMentionEvent)
-	commandProcessor(ev *slackevents.AppMentionEvent)
+	commandProcessor(c slack.CommandInfo)
 }
 
 type JobHandler struct {
@@ -111,7 +113,7 @@ func (jh *JobHandler) InitJobs() {
 
 func (jh *JobHandler) CommandReciever(c chan slack.CommandInfo) {
 	for command := range c {
-		jh.jobs[command.Match].commandProcessor(command.Event)
+		jh.jobs[command.Match].commandProcessor(command)
 	}
 }
 
@@ -134,7 +136,7 @@ func (lj *labJob) disable() {
 
 type action func(ev *slackevents.AppMentionEvent)
 
-func (lj *labJob) commandProcessor(ev *slackevents.AppMentionEvent) {}
+func (lj *labJob) commandProcessor(c slack.CommandInfo) {}
 
 func (cj *controllerJob) init() {
 	cj.labJob.init()
@@ -200,34 +202,35 @@ func (cj *controllerJob) getPowerStatus(ev *slackevents.AppMentionEvent) {
 	}
 }
 
-func (cj *controllerJob) commandProcessor(ev *slackevents.AppMentionEvent) {
+func (cj *controllerJob) commandProcessor(c slack.CommandInfo) {
 	if cj.status {
+		cropText := strings.ReplaceAll(c.Event.Text, c.Match, "")
 		controllerActions := map[string]action{
 			"on":     cj.turnOn,
 			"off":    cj.turnOff,
 			"status": cj.getPowerStatus,
 		}
 		k := slack.GetKeys(controllerActions)
-		match, err := slack.TextMatcher(ev.Text, k)
+		match, err := slack.TextMatcher(cropText, k)
 		if err == nil {
 			f := controllerActions[match]
-			f(ev)
+			f(c.Event)
 		} else if err.Error() == "no match found" {
 			cj.logger.WithField("err", err).Warn("No callback function found.")
 			cj.messenger <- slack.MessageInfo{
-				ChannelID: ev.Channel,
+				ChannelID: c.Event.Channel,
 				Text:      "I'm not sure what you sayin",
 			}
 		} else {
 			cj.logger.WithField("err", err).Warn("Many callback functions found.")
 			cj.messenger <- slack.MessageInfo{
-				ChannelID: ev.Channel,
+				ChannelID: c.Event.Channel,
 				Text:      "I can respond in multiple ways ...",
 			}
 		}
 	} else {
 		cj.messenger <- slack.MessageInfo{
-			ChannelID: ev.Channel,
+			ChannelID: c.Event.Channel,
 			Text:      "The " + cj.name + " is disabled",
 		}
 	}
