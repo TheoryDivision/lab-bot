@@ -18,6 +18,7 @@ require (
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/prometheus/procfs v0.0.0-20190425082905-87a4384529e0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/stianeikeland/go-rpio v4.2.0+incompatible // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
