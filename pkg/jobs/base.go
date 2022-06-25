@@ -3,7 +3,7 @@ package jobs
 import (
 	// "github.com/go-co-op/gocron"
 
-  "strings"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack/slackevents"
@@ -86,6 +86,7 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 			logger:    controllerLogger,
 			messenger: m,
 		},
+		machineName: "coffee machine",
 		powerStatus: false,
 		customInit:  pinInit,
 		customOn:    pinOn,
