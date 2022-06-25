@@ -64,7 +64,7 @@ type JobHandler struct {
 }
 
 func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
-	var jobs map[string]job
+	jobs := make(map[string]job)
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
 	controllerLogger := jobLogger.WithField("jobtype", "controller")
