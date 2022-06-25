@@ -11,7 +11,6 @@ import (
 	"github.com/slack-go/slack/socketmode"
 
 	"github.com/vishhvaan/lab-bot/pkg/config"
-	"github.com/vishhvaan/lab-bot/pkg/jobs"
 	"github.com/vishhvaan/lab-bot/pkg/logging"
 )
 
@@ -22,16 +21,17 @@ type slackClient struct {
 	logger    *log.Entry
 	members   map[string]config.Member
 	responses map[string]cb
-	jobs      *jobs.JobHandler
+	commander chan CommandInfo
 }
 
 type slackBot struct {
-	bot        *goslack.Bot
-	botID      string
-	botChannel string
+	bot          *goslack.Bot
+	botID        string
+	botChannelID string
 }
 
-func CreateClient(secrets map[string]string, members map[string]config.Member, botChannel string) (sc *slackClient) {
+func CreateClient(secrets map[string]string, members map[string]config.Member, botChannel string,
+	c chan CommandInfo) (sc *slackClient) {
 	logFolder := logging.CreateLogFolder()
 	logFileInternal := logging.CreateLogFile(logFolder, "slack_internal")
 	slackLogger := logging.CreateNewLogger("slack", "slack")
@@ -86,14 +86,14 @@ func CreateClient(secrets map[string]string, members map[string]config.Member, b
 		api:    api,
 		client: client,
 		slackBot: slackBot{
-			bot:        bot,
-			botID:      botID,
-			botChannel: botChannelID,
+			bot:          bot,
+			botID:        botID,
+			botChannelID: botChannelID,
 		},
 		logger:    slackLogger,
 		members:   members,
 		responses: getResponses(),
-		jobs:      jobs.CreateHandler(),
+		commander: c,
 	}
 	slackLogger.Info("Created Slack client.")
 	return sc

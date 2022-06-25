@@ -3,8 +3,10 @@ package jobs
 import (
 	// "github.com/go-co-op/gocron"
 	log "github.com/sirupsen/logrus"
+	"github.com/slack-go/slack/slackevents"
 
 	"github.com/vishhvaan/lab-bot/pkg/logging"
+	"github.com/vishhvaan/lab-bot/pkg/slack"
 )
 
 /*
@@ -27,10 +29,11 @@ check and rewrite file and map
 */
 
 type labJob struct {
-	name   string
-	status bool
-	desc   string
-	logger *log.Entry
+	name      string
+	status    bool
+	desc      string
+	logger    *log.Entry
+	messenger chan slack.MessageInfo
 	job
 }
 
@@ -38,6 +41,7 @@ type job interface {
 	init()
 	enable()
 	disable()
+	commandProcessor(ev *slackevents.AppMentionEvent)
 }
 
 type controllerJob struct {
@@ -51,15 +55,16 @@ type controller interface {
 	init()
 	turnOn()
 	turnOff()
+	commandProcessor(ev *slackevents.AppMentionEvent)
 }
 
 type JobHandler struct {
-	jobs   []job
+	jobs   map[string]job
 	logger *log.Entry
 }
 
-func CreateHandler() (jh *JobHandler) {
-	var jobs []job
+func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
+	var jobs map[string]job
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
 	controllerLogger := jobLogger.WithField("jobtype", "controller")
@@ -83,8 +88,17 @@ func CreateHandler() (jh *JobHandler) {
 	}
 }
 
+func (jh *JobHandler) CommandReciever(c chan slack.CommandInfo) {
+	for command := range c {
+		jh.jobs[command.Match].commandProcessor(command.Event)
+	}
+}
+
 func (lj *labJob) init() {
 	lj.status = true
+	lj.messenger <- slack.MessageInfo{
+		Text: lj.name + " has been loaded",
+	}
 }
 
 func (lj *labJob) enable() {

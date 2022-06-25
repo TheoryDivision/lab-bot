@@ -51,4 +51,3 @@ func (sc *slackClient) appMentionSubprocessor(ev *slackevents.AppMentionEvent) {
 	}).Info("App mentioned.")
 	sc.launchCB(ev)
 }
-

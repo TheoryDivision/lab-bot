@@ -24,24 +24,39 @@ func (sc *slackClient) launchCB(ev *slackevents.AppMentionEvent) {
 		f(sc, ev, match)
 	} else if err == "no match found" {
 		sc.logger.Warn("No callback function found.")
-		sc.PostMessage(ev.Channel, "I'm not sure what you sayin")
+		sc.PostMessage(MessageInfo{
+			ChannelID: ev.Channel,
+			Text:      "I'm not sure what you sayin",
+		})
 	} else {
 		sc.logger.Warn("Many callback functions found.")
-		sc.PostMessage(ev.Channel, "I can respond in multiple ways ...")
+		sc.PostMessage(MessageInfo{
+			ChannelID: ev.Channel,
+			Text:      "I can respond in multiple ways ...",
+		})
 	}
 }
 
 func hello(sc *slackClient, ev *slackevents.AppMentionEvent, match string) {
 	response := "Hello, " + sc.getUserName(ev.User) + "! :party_parrot:"
-	sc.PostMessage(ev.Channel, response)
+	sc.PostMessage(MessageInfo{
+		ChannelID: ev.Channel,
+		Text:      response,
+	})
 }
 
 func bye(sc *slackClient, ev *slackevents.AppMentionEvent, match string) {
 	response := "Goodbye, " + sc.getUserName(ev.User) + "! :wave:"
-	sc.PostMessage(ev.Channel, response)
+	sc.PostMessage(MessageInfo{
+		ChannelID: ev.Channel,
+		Text:      response,
+	})
 }
 
 func sysinfo(sc *slackClient, ev *slackevents.AppMentionEvent, match string) {
 	response := functions.GetSysInfo()
-	sc.PostMessage(ev.Channel, response)
+	sc.PostMessage(MessageInfo{
+		ChannelID: ev.Channel,
+		Text:      response,
+	})
 }
