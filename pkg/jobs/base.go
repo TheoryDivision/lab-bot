@@ -51,13 +51,32 @@ type controller interface {
 }
 
 type JobHandler struct {
+	jobs   []job
 	logger *log.Entry
 }
 
 func CreateHandler() (jh *JobHandler) {
+	var jobs []job
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
+	controllerLogger := jobLogger.WithField("jobtype", "controller")
+
+	cC := &controllerJob{
+		labJob: labJob{
+			name:   "Coffee Controller",
+			status: false,
+			desc:   "Power control for the espresso machine in the lab",
+			logger: controllerLogger,
+		},
+		powerStatus: false,
+		logger:      controllerLogger.WithField("job", "coffeeController"),
+	}
+
+	jobs = append(jobs, cC)
 
 	return &JobHandler{
+		jobs:   jobs,
 		logger: jobLogger,
 	}
 }
+
+func (lj labJob) init() {}
