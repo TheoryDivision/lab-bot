@@ -80,7 +80,7 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 		logger:      controllerLogger.WithField("job", "coffeeController"),
 	}
 
-	jobs = append(jobs, cC)
+	jobs["coffee"] = cC
 
 	return &JobHandler{
 		jobs:   jobs,
