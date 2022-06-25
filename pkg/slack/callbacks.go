@@ -1,8 +1,6 @@
 package slack
 
 import (
-	"errors"
-
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/vishhvaan/lab-bot/pkg/functions"
@@ -15,6 +13,7 @@ var responses = map[string]cb{
 	"sup": hello, "hi": hello,
 	"bye": bye, "goodbye": bye, "tata": bye,
 	"sysinfo": sysinfo,
+	"coffee":  coffee,
 }
 
 func (sc *slackClient) launchCB(ev *slackevents.AppMentionEvent) {
@@ -22,14 +21,14 @@ func (sc *slackClient) launchCB(ev *slackevents.AppMentionEvent) {
 	if err == nil {
 		f := responses[match]
 		f(sc, ev, match)
-	} else if err == errors.New("no match found") {
-		sc.logger.Warn("No callback function found.")
+	} else if err.Error() == "no match found" {
+		sc.logger.WithField("err", err).Warn("No callback function found.")
 		sc.PostMessage(MessageInfo{
 			ChannelID: ev.Channel,
 			Text:      "I'm not sure what you sayin",
 		})
 	} else {
-		sc.logger.Warn("Many callback functions found.")
+		sc.logger.WithField("err", err).Warn("Many callback functions found.")
 		sc.PostMessage(MessageInfo{
 			ChannelID: ev.Channel,
 			Text:      "I can respond in multiple ways ...",
@@ -59,4 +58,11 @@ func sysinfo(sc *slackClient, ev *slackevents.AppMentionEvent, match string) {
 		ChannelID: ev.Channel,
 		Text:      response,
 	})
+}
+
+func coffee(sc *slackClient, ev *slackevents.AppMentionEvent, match string) {
+	sc.commander <- CommandInfo{
+		Match: match,
+		Event: ev,
+	}
 }

@@ -2,7 +2,6 @@ package jobs
 
 import (
 	// "github.com/go-co-op/gocron"
-	"errors"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack/slackevents"
@@ -142,10 +141,10 @@ func (cj *controllerJob) init() {
 	var message string
 	err := cj.customInit()
 	if err != nil {
-		message := "Couldn't load " + cj.name
+		message = "Couldn't load " + cj.name
 		cj.logger.WithField("err", err).Error(message)
 	} else {
-		message := cj.name + " loaded"
+		message = cj.name + " loaded"
 		cj.logger.Info(message)
 	}
 	cj.messenger <- slack.MessageInfo{
@@ -213,14 +212,14 @@ func (cj *controllerJob) commandProcessor(ev *slackevents.AppMentionEvent) {
 		if err == nil {
 			f := controllerActions[match]
 			f(ev)
-		} else if err == errors.New("no match found") {
-			cj.logger.Warn("No callback function found.")
+		} else if err.Error() == "no match found" {
+			cj.logger.WithField("err", err).Warn("No callback function found.")
 			cj.messenger <- slack.MessageInfo{
 				ChannelID: ev.Channel,
 				Text:      "I'm not sure what you sayin",
 			}
 		} else {
-			cj.logger.Warn("Many callback functions found.")
+			cj.logger.WithField("err", err).Warn("Many callback functions found.")
 			cj.messenger <- slack.MessageInfo{
 				ChannelID: ev.Channel,
 				Text:      "I can respond in multiple ways ...",
