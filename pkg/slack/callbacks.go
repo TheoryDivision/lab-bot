@@ -35,7 +35,6 @@ var basicResponses = map[string]cb{
 	"sup": hello, "hi": hello,
 	"bye": bye, "goodbye": bye, "tata": bye,
 	"sysinfo": sysinfo,
-	"coffee":  coffee,
 }
 
 func hello(sc *slackClient, ev *slackevents.AppMentionEvent, fields []string) {
@@ -60,11 +59,4 @@ func sysinfo(sc *slackClient, ev *slackevents.AppMentionEvent, fields []string) 
 		ChannelID: ev.Channel,
 		Text:      response,
 	})
-}
-
-func coffee(sc *slackClient, ev *slackevents.AppMentionEvent, match string) {
-	sc.commander <- CommandInfo{
-		Match: match,
-		Event: ev,
-	}
 }
