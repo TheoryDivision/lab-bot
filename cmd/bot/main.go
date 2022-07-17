@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"path"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/vishhvaan/lab-bot/pkg/files"
 	"github.com/vishhvaan/lab-bot/pkg/jobs"
 	"github.com/vishhvaan/lab-bot/pkg/logging"
+	"github.com/vishhvaan/lab-bot/pkg/scheduling"
 	"github.com/vishhvaan/lab-bot/pkg/slack"
 )
 
@@ -22,6 +25,7 @@ var (
 )
 
 func init() {
+	rand.Seed(time.Now().UnixNano())
 	logging.Setup()
 	exePath := logging.FindExeDir()
 	flag.StringVar(&membersFile, "members", path.Join(exePath, "members.yml"), "Location of the members file")
@@ -51,7 +55,10 @@ func main() {
 	go slackClient.EventProcessor()
 	go slackClient.RunSocketMode()
 
-	jobHandler := jobs.CreateHandler(messages)
+	scheduleTracker := scheduling.CreateScheduleTracker(messages)
+	go scheduleTracker.Reciever()
+
+	jobHandler := jobs.CreateHandler(messages, commands)
 	jobHandler.InitJobs()
-	jobHandler.CommandReciever(commands)
+	jobHandler.CommandReceiver()
 }

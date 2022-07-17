@@ -1,8 +1,6 @@
 package jobs
 
 import (
-	// "github.com/go-co-op/gocron"
-
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -33,10 +31,12 @@ check and rewrite file and map
 
 type labJob struct {
 	name      string
-	status    bool
+	keyword   string
+	active    bool
 	desc      string
 	logger    *log.Entry
 	messenger chan slack.MessageInfo
+	commander chan slack.CommandInfo
 	responses map[string]action
 	job
 }
@@ -53,10 +53,11 @@ type job interface {
 type JobHandler struct {
 	jobs      map[string]job
 	messenger chan slack.MessageInfo
+	commander chan slack.CommandInfo
 	logger    *log.Entry
 }
 
-func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
+func CreateHandler(m chan slack.MessageInfo, c chan slack.CommandInfo) (jh *JobHandler) {
 	jobs := make(map[string]job)
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
@@ -83,6 +84,7 @@ func CreateHandler(m chan slack.MessageInfo) (jh *JobHandler) {
 	return &JobHandler{
 		jobs:      jobs,
 		messenger: m,
+		commander: c,
 		logger:    jobLogger,
 	}
 }
@@ -97,34 +99,34 @@ func (jh *JobHandler) InitJobs() {
 	}
 }
 
-func (jh *JobHandler) CommandReciever(c chan slack.CommandInfo) {
-	for command := range c {
+func (jh *JobHandler) CommandReceiver() {
+	for command := range jh.commander {
 		k := strings.ToLower(command.Fields[0])
 		if functions.Contains(functions.GetKeys(jh.jobs), k) {
 			jh.jobs[k].commandProcessor(command)
 		} else {
 			jh.messenger <- slack.MessageInfo{
 				Text:      "I couldn't find a response to your command.",
-				ChannelID: command.Event.Channel,
+				ChannelID: command.Channel,
 			}
 		}
 	}
 }
 
 func (lj *labJob) init() {
-	lj.status = true
+	lj.active = true
 	// lj.messenger <- slack.MessageInfo{
 	// 	Text: lj.name + " has been loaded",
 	// }
 }
 
 func (lj *labJob) enable() {
-	lj.status = true
+	lj.active = true
 	lj.logger.Info("Enabled job " + lj.name)
 }
 
 func (lj *labJob) disable() {
-	lj.status = false
+	lj.active = false
 	lj.logger.Info("Disabled job " + lj.name)
 }
 
@@ -132,11 +134,11 @@ func (lj *labJob) commandProcessor(c slack.CommandInfo) {}
 
 func commandCheck(c slack.CommandInfo, length int, m chan slack.MessageInfo, l *log.Entry) bool {
 	if len(c.Fields) > length {
-		message := "Your command has parameters than necessary"
+		message := "Your command has more parameters than necessary"
 		go l.Info(message)
 		m <- slack.MessageInfo{
 			Text:      message,
-			ChannelID: c.Event.Channel,
+			ChannelID: c.Channel,
 		}
 		return false
 	} else {
