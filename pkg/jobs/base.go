@@ -7,6 +7,7 @@ import (
 
 	"github.com/vishhvaan/lab-bot/pkg/functions"
 	"github.com/vishhvaan/lab-bot/pkg/logging"
+	"github.com/vishhvaan/lab-bot/pkg/scheduling"
 	"github.com/vishhvaan/lab-bot/pkg/slack"
 )
 
@@ -66,10 +67,12 @@ func CreateHandler(m chan slack.MessageInfo, c chan slack.CommandInfo) (jh *JobH
 	cC := &controllerJob{
 		labJob: labJob{
 			name:      "Coffee Controller",
-			status:    false,
+			keyword:   "coffee",
+			active:    true,
 			desc:      "Power control for the espresso machine in the lab",
 			logger:    controllerLogger,
 			messenger: m,
+			commander: c,
 		},
 		machineName: "coffee machine",
 		powerStatus: false,
@@ -77,9 +80,12 @@ func CreateHandler(m chan slack.MessageInfo, c chan slack.CommandInfo) (jh *JobH
 		customOn:    pinOn,
 		customOff:   pinOff,
 		logger:      controllerLogger.WithField("job", "coffeeController"),
+		scheduling: scheduling.ControllerSchedule{
+			Logger: controllerLogger.WithField("job", "coffeeController").WithField("task", "scheduling"),
+		},
 	}
 
-	jobs["coffee"] = cC
+	jobs[cC.keyword] = cC
 
 	return &JobHandler{
 		jobs:      jobs,
