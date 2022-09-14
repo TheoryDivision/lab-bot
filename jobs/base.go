@@ -7,27 +7,9 @@ import (
 
 	"github.com/vishhvaan/lab-bot/functions"
 	"github.com/vishhvaan/lab-bot/logging"
+	"github.com/vishhvaan/lab-bot/scheduling"
 	"github.com/vishhvaan/lab-bot/slack"
 )
-
-/*
-Todo:
-schedule jobs with github.com/go-co-op/gocron
-keep track of status
-struct for each job with parameters
-jobs interface with shared commands
-add ability to keep track of messageIDs
-create processing for message emojis
-task done with reactions -> ends interaction for that time
-else post on the lab-bot-channel with the info
-(or start group conv) -> ends interaction for that time
-
-find members with particular roles
-apply jobs to those roles
-
-upload new members.yml via messages
-check and rewrite file and map
-*/
 
 type labJob struct {
 	name      string
@@ -61,6 +43,30 @@ func CreateHandler(m chan slack.MessageInfo, c chan slack.CommandInfo) (jh *JobH
 	jobs := make(map[string]job)
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
+	controllerLogger := jobLogger.WithField("jobtype", "controller")
+
+	cC := &controllerJob{
+		labJob: labJob{
+			name:      "Coffee Controller",
+			keyword:   "coffee",
+			active:    true,
+			desc:      "Power control for the espresso machine in the lab",
+			logger:    controllerLogger,
+			messenger: m,
+			commander: c,
+		},
+		machineName: "coffee machine",
+		powerStatus: false,
+		customInit:  pinInit,
+		customOn:    pinOn,
+		customOff:   pinOff,
+		logger:      controllerLogger.WithField("job", "coffeeController"),
+		scheduling: scheduling.ControllerSchedule{
+			Logger: controllerLogger.WithField("job", "coffeeController").WithField("task", "scheduling"),
+		},
+	}
+
+	jobs[cC.keyword] = cC
 
 	return &JobHandler{
 		jobs:      jobs,
