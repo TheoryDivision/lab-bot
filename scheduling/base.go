@@ -13,11 +13,16 @@ import (
 const idLength = 5
 const idLetters = "abcdefghijklmnopqrstuvwxyz0123456789"
 
+type scheduleRecord struct {
+	id      string
+	name    string
+	cronExp string
+	command slack.CommandInfo
+}
+
 type Schedule struct {
-	id        string
-	name      string
-	cronExp   string
-	channel   string
+	scheduleRecord
+	command   slack.CommandInfo
 	scheduler *gocron.Scheduler
 	logger    *log.Entry
 	schedule
@@ -84,7 +89,7 @@ func (st *ScheduleTracker) Reciever() {
 	}
 }
 
-func generateID() string {
+func GenerateID() string {
 	b := make([]byte, idLength)
 	for i := range b {
 		b[i] = idLetters[rand.Intn(len(idLetters))]
