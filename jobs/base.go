@@ -17,8 +17,6 @@ type labJob struct {
 	active    bool
 	desc      string
 	logger    *log.Entry
-	messenger chan slack.MessageInfo
-	commander chan slack.CommandInfo
 	responses map[string]action
 	job
 }
@@ -33,13 +31,11 @@ type job interface {
 }
 
 type JobHandler struct {
-	jobs      map[string]job
-	messenger chan slack.MessageInfo
-	commander chan slack.CommandInfo
-	logger    *log.Entry
+	jobs   map[string]job
+	logger *log.Entry
 }
 
-func CreateHandler(m chan slack.MessageInfo, c chan slack.CommandInfo) (jh *JobHandler) {
+func CreateHandler() (jh *JobHandler) {
 	jobs := make(map[string]job)
 
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
@@ -69,10 +65,8 @@ func CreateHandler(m chan slack.MessageInfo, c chan slack.CommandInfo) (jh *JobH
 	jobs[cC.keyword] = cC
 
 	return &JobHandler{
-		jobs:      jobs,
-		messenger: m,
-		commander: c,
-		logger:    jobLogger,
+		jobs:   jobs,
+		logger: jobLogger,
 	}
 }
 
@@ -87,12 +81,12 @@ func (jh *JobHandler) InitJobs() {
 }
 
 func (jh *JobHandler) CommandReceiver() {
-	for command := range jh.commander {
+	for command := range slack.CommandChan {
 		k := strings.ToLower(command.Fields[0])
 		if functions.Contains(functions.GetKeys(jh.jobs), k) {
 			jh.jobs[k].commandProcessor(command)
 		} else {
-			jh.messenger <- slack.MessageInfo{
+			slack.MessageChan <- slack.MessageInfo{
 				Text:      "I couldn't find a response to your command.",
 				ChannelID: command.Channel,
 			}
