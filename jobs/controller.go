@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/vishhvaan/lab-bot/db"
 	"github.com/vishhvaan/lab-bot/functions"
 	"github.com/vishhvaan/lab-bot/scheduling"
 	"github.com/vishhvaan/lab-bot/slack"
@@ -48,6 +49,45 @@ func (cj *controllerJob) init() {
 	slack.MessageChan <- slack.MessageInfo{
 		Text: message,
 	}
+
+	cj.scheduling.DbPath = append([]string{"jobs", "controller"}, cj.keyword, "scheduling")
+	cj.checkCreateBucket()
+
+}
+
+func (cj *controllerJob) checkCreateBucket() (exists bool) {
+	exists = db.CheckBucketExists(cj.scheduling.DbPath)
+	if !exists {
+		db.CreateBucket(cj.scheduling.DbPath)
+	}
+	return exists
+}
+
+func (cj *controllerJob) LoadSchedsfromDB() (err error) {
+	records, err := cj.scheduling.LoadSchedsfromDB()
+	if err != nil {
+		message := "cannot load schedules from database"
+		slack.MessageChan <- slack.MessageInfo{
+			Text: message,
+		}
+		cj.logger.WithFields(log.Fields{
+			"err":  err,
+			"path": cj.scheduling.DbPath,
+		}).Error(message)
+		return err
+	}
+
+	for _, record := range records {
+		powerVal := record.Command.Fields[2]
+		e := cj.scheduling.ContSet(record.ID, record.CronExp, record.Command)
+		if e != nil {
+			cj.errorMsg(record.Command.Fields, record.Command.Channel, err.Error())
+			err = e
+		} else {
+			cj.sendMsg(record.Command.Channel, "_Loaded scheduled power "+powerVal+" task from the database._")
+		}
+	}
+	return err
 }
 
 func (cj *controllerJob) TurnOn(c slack.CommandInfo) {
@@ -196,14 +236,15 @@ func (cj *controllerJob) scheduleHandler(c slack.CommandInfo) {
 
 func (cj *controllerJob) sched(c slack.CommandInfo) {
 	powerVal := c.Fields[2]
-	command := slack.CommandInfo{
-		Fields:  []string{cj.keyword, powerVal},
-		Channel: c.Channel,
-	}
+	// keyword = c.Fields[0]
 	if len(c.Fields) >= 4 {
 		if c.Fields[3] == "set" && len(c.Fields) > 4 {
 			cronExp := strings.Join(c.Fields[4:], " ")
-			err := cj.scheduling.ContSet(scheduling.GenerateID(), cronExp, command)
+			id, err := db.IncrementBucketInteger(cj.scheduling.DbPath)
+			if err != nil {
+				cj.errorMsg(c.Fields, c.Channel, "couldn't get ID for schedule")
+			}
+			err = cj.scheduling.ContSet(fmt.Sprintf("%05d", id), cronExp, c)
 			if err != nil {
 				cj.errorMsg(c.Fields, c.Channel, err.Error())
 			} else {
@@ -211,7 +252,7 @@ func (cj *controllerJob) sched(c slack.CommandInfo) {
 			}
 			return
 		} else if c.Fields[3] == "remove" && len(c.Fields) == 4 {
-			err := cj.scheduling.ContRemove(command)
+			err := cj.scheduling.ContRemove(c)
 			if err != nil {
 				cj.errorMsg(c.Fields, c.Channel, err.Error())
 			} else {

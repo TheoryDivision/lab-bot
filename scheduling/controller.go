@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -10,12 +11,14 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/vishhvaan/lab-bot/db"
 	"github.com/vishhvaan/lab-bot/slack"
 )
 
 type ControllerSchedule struct {
 	Logger *log.Entry
 	Sched  map[string]*Schedule
+	DbPath []string
 }
 
 func (cs *ControllerSchedule) ContSet(id string, cronSched string, command slack.CommandInfo) (err error) {
@@ -30,7 +33,7 @@ func (cs *ControllerSchedule) ContSet(id string, cronSched string, command slack
 
 		s := gocron.NewScheduler(time.Now().Local().Location())
 
-		name := command.Fields[0] + " " + command.Fields[1]
+		name := command.Fields[0] + " " + command.Fields[2]
 		s.Cron(cronSched).Tag(powerVal).Do(func(command slack.CommandInfo, id string, name string, channel string) {
 			t := "[" + id + "] Executing " + name
 			slack.MessageChan <- slack.MessageInfo{
@@ -41,15 +44,18 @@ func (cs *ControllerSchedule) ContSet(id string, cronSched string, command slack
 		}, command, id, name, command.Channel)
 		s.StartAsync()
 
+		record := scheduleRecord{
+			ID:      id,
+			Name:    name,
+			CronExp: cronSched,
+			Command: command,
+		}
+		cs.writeSchedtoDB(record)
+
 		sch := &Schedule{
-			scheduleRecord: scheduleRecord{
-				id:      id,
-				name:    name,
-				cronExp: cronSched,
-				command: command,
-			},
-			scheduler: s,
-			logger:    cs.Logger.WithField("job", name),
+			scheduleRecord: record,
+			scheduler:      s,
+			logger:         cs.Logger.WithField("job", name),
 		}
 
 		if err == nil {
@@ -64,6 +70,7 @@ func (cs *ControllerSchedule) ContRemove(command slack.CommandInfo) (err error) 
 	if cs.Sched[powerVal] != nil && cs.Sched[powerVal].scheduler != nil && cs.Sched[powerVal].scheduler.IsRunning() {
 		cs.Sched[powerVal].scheduler.Stop()
 		// schedChan <- cs.onSched
+		cs.deleteSchedfromDB(cs.Sched[powerVal].scheduleRecord)
 		delete(cs.Sched, powerVal)
 		return nil
 	} else {
@@ -83,7 +90,7 @@ func (cs *ControllerSchedule) ContGetSchedulingStatus() string {
 	for key, schedule := range cs.Sched {
 		if schedule != nil && schedule.scheduler != nil && schedule.scheduler.IsRunning() {
 			status.WriteString("*Scheduled " + strings.Title(key) + "*: ")
-			onText, err := exprDesc.ToDescription(schedule.cronExp, crondesc.Locale_en)
+			onText, err := exprDesc.ToDescription(schedule.CronExp, crondesc.Locale_en)
 			if err != nil {
 				message := "could not generate plain text for scheduled " + key
 				cs.Logger.WithField("err", err).Error(message)
@@ -100,4 +107,41 @@ func (cs *ControllerSchedule) ContGetSchedulingStatus() string {
 	}
 
 	return status.String()
+}
+
+func (cs *ControllerSchedule) LoadSchedsfromDB() (records []scheduleRecord, err error) {
+	_, values, err := db.GetAllKeysValues(cs.DbPath)
+	if err != nil {
+		return records, err
+	}
+	for _, value := range values {
+		var record scheduleRecord
+		err = json.Unmarshal(value, &record)
+		records = append(records, record)
+	}
+	return records, err
+}
+
+func (cs *ControllerSchedule) writeSchedtoDB(record scheduleRecord) (err error) {
+	value, err := db.ReadValue(cs.DbPath, record.ID)
+	if value == nil {
+		return err
+	}
+
+	buf, err := json.Marshal(record)
+	if err != nil {
+		cs.Logger.WithFields(log.Fields{
+			"err":    err,
+			"record": record,
+		}).Error("cannot create convert struct to json")
+		return err
+	}
+
+	err = db.AddValue(cs.DbPath, record.ID, buf)
+	return err
+}
+
+func (cs *ControllerSchedule) deleteSchedfromDB(record scheduleRecord) (err error) {
+	err = db.DeleteValue(cs.DbPath, record.ID)
+	return err
 }
