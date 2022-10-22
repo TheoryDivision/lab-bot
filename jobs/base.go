@@ -43,13 +43,11 @@ func CreateHandler() (jh *JobHandler) {
 
 	cC := &controllerJob{
 		labJob: labJob{
-			name:      "Coffee Controller",
-			keyword:   "coffee",
-			active:    true,
-			desc:      "Power control for the espresso machine in the lab",
-			logger:    controllerLogger,
-			messenger: m,
-			commander: c,
+			name:    "Coffee Controller",
+			keyword: "coffee",
+			active:  true,
+			desc:    "Power control for the espresso machine in the lab",
+			logger:  controllerLogger,
 		},
 		machineName: "coffee machine",
 		powerStatus: false,
