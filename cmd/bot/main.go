@@ -61,5 +61,7 @@ func main() {
 
 	jobHandler := jobs.CreateHandler()
 	jobHandler.InitJobs()
-	jobHandler.CommandReceiver()
+	go jobHandler.CommandReceiver()
+
+	CatchOSSignals()
 }
