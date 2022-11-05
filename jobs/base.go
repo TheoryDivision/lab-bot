@@ -50,7 +50,7 @@ func CreateHandler() (jh *JobHandler) {
 			logger:  controllerLogger,
 		},
 		machineName: "coffee machine",
-		powerStatus: false,
+		powerState:  false,
 		customInit:  pinInit,
 		customOn:    pinOn,
 		customOff:   pinOff,
