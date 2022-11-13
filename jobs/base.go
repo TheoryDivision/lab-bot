@@ -12,12 +12,11 @@ import (
 )
 
 type labJob struct {
-	name      string
-	keyword   string
-	active    bool
-	desc      string
-	logger    *log.Entry
-	responses map[string]action
+	name    string
+	keyword string
+	active  bool
+	desc    string
+	logger  *log.Entry
 	job
 }
 
@@ -61,6 +60,19 @@ func CreateHandler() (jh *JobHandler) {
 	}
 
 	jobs[cC.keyword] = cC
+
+	jobs["paper"] = &paperUploaderJob{
+		labJob: labJob{
+			name:    "Paper Uploader",
+			keyword: "paper",
+			active:  true,
+			desc:    "Uploads papers downloaded from the scidownl utility",
+			logger: jobLogger.WithFields(log.Fields{
+				"jobtype": "uploader",
+				"job":     "paperUploader",
+			}),
+		},
+	}
 
 	return &JobHandler{
 		jobs:   jobs,
