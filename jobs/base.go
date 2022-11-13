@@ -40,7 +40,7 @@ func CreateHandler() (jh *JobHandler) {
 	jobLogger := logging.CreateNewLogger("jobhandler", "jobhandler")
 	controllerLogger := jobLogger.WithField("jobtype", "controller")
 
-	cC := &controllerJob{
+	jobs["coffee"] = &controllerJob{
 		labJob: labJob{
 			name:    "Coffee Controller",
 			keyword: "coffee",
@@ -58,8 +58,6 @@ func CreateHandler() (jh *JobHandler) {
 			Logger: controllerLogger.WithField("job", "coffeeController").WithField("task", "scheduling"),
 		},
 	}
-
-	jobs[cC.keyword] = cC
 
 	jobs["paper"] = &paperUploaderJob{
 		labJob: labJob{
