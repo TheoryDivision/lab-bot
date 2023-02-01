@@ -46,14 +46,16 @@ func CreateHandler() (jh *JobHandler) {
 			keyword: "coffee",
 			active:  true,
 			desc:    "Power control for the espresso machine in the lab",
-			logger:  controllerLogger,
+			logger: jobLogger.WithFields(log.Fields{
+				"jobtype": "controller",
+				"job":     "coffeeController",
+			}),
 		},
 		machineName: "coffee machine",
 		powerState:  "off",
 		customInit:  pinInit,
 		customOn:    pinOn,
 		customOff:   pinOff,
-		logger:      controllerLogger.WithField("job", "coffeeController"),
 		scheduling: scheduling.ControllerSchedule{
 			Logger: controllerLogger.WithField("job", "coffeeController").WithField("task", "scheduling"),
 		},
@@ -68,6 +70,19 @@ func CreateHandler() (jh *JobHandler) {
 			logger: jobLogger.WithFields(log.Fields{
 				"jobtype": "uploader",
 				"job":     "paperUploader",
+			}),
+		},
+	}
+
+	jobs["&gt;"] = &openAIBot{
+		labJob: labJob{
+			name:    "OpenAI Bot",
+			keyword: ">",
+			active:  true,
+			desc:    "Passes queries to the OpenAI API and returns top completion",
+			logger: jobLogger.WithFields(log.Fields{
+				"jobtype": "bot",
+				"job":     "openAIBot",
 			}),
 		},
 	}
