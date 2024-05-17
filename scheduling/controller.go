@@ -3,6 +3,7 @@ package scheduling
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/vishhvaan/lab-bot/db"
+	"github.com/vishhvaan/lab-bot/functions"
 	"github.com/vishhvaan/lab-bot/slack"
 )
 
@@ -227,6 +229,36 @@ func (cs *ControllerSchedule) DeletePowerMessage() error {
 	if err == nil {
 		db.DeleteValue(cs.DbPath, "PowerMessageTimestamp")
 		db.DeleteValue(cs.DbPath, "PowerMessageChannel")
+		cs.powerMessageChannel = ""
+		cs.powerMessageTimestamp = ""
+	}
+	return err
+}
+
+func (cs *ControllerSchedule) DeleteOtherPowerMessage(name string, timestamp string) error {
+	if cs.powerMessageChannel == "" || cs.powerMessageTimestamp == "" {
+		errorMsg := "power message channel is undefined, cannot delete power messages"
+		cs.Logger.Error(errorMsg)
+		return errors.New(errorMsg)
+	}
+
+	pinnedMessages, err := slack.ListPins(cs.powerMessageChannel)
+	if err == nil {
+		timestamps := functions.GetKeys(pinnedMessages)
+		var numDeleted int
+		if len(timestamps) != 0 {
+			for _, timestamp := range timestamps {
+				if timestamp != cs.powerMessageTimestamp && strings.Contains(pinnedMessages[timestamp], name) {
+					slack.DeleteMessage(cs.powerMessageChannel, timestamp)
+					numDeleted++
+				}
+			}
+			cs.Logger.WithFields(log.Fields{
+				"channel": cs.powerMessageChannel,
+			}).Info(fmt.Sprintf("Deleted %d power messages.", numDeleted))
+		}
+	} else {
+		cs.Logger.WithError(err).Warn("Couldn't delete power messages")
 	}
 	return err
 }

@@ -87,6 +87,28 @@ func CreateHandler() (jh *JobHandler) {
 		},
 	}
 
+	jobs["birthday"] = &birthdayJob{
+		labJob: labJob{
+			name:    "Birthday Bot",
+			keyword: "birthday",
+			active:  true,
+			desc:    "Monitors, alerts, and records member birthdays",
+			logger: jobLogger.WithFields(log.Fields{
+				"jobtype": "bot",
+				"job":     "birthdayBot",
+			}),
+		},
+		scheduling: scheduling.BirthdaySchedule{
+			BirthdayMessageChannel: "lab-bot-channel-test",
+			CronExp:                "0 8 * * *",
+			Logger: jobLogger.WithFields(log.Fields{
+				"jobtype": "bot",
+				"job":     "birthdayBot",
+				"task":    "scheduling",
+			}),
+		},
+	}
+
 	return &JobHandler{
 		jobs:   jobs,
 		logger: jobLogger,
