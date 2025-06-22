@@ -107,59 +107,128 @@ func (bj *birthdayJob) birthdayStatus(c slack.CommandInfo) {
 	}
 }
 
-// birthday record 10-24-2000
+// record a birthday:  “birthday record 10-24 [@user] [force]”
 func (bj *birthdayJob) recordBirthday(c slack.CommandInfo) {
-	var force bool
-	if len(c.Fields) > 3 {
-		if c.Fields[3] == "force" {
-			force = true
+	loc := time.Now().Location()
+
+	parseMonthDay := func(s string) (time.Time, bool) {
+		var sep string
+		if strings.Contains(s, "-") {
+			sep = "-"
+		} else if strings.Contains(s, "/") {
+			sep = "/"
 		} else {
-			slack.SendMessage(c.Channel, "only the force flag is supported")
-			return
+			return time.Time{}, false
+		}
+		parts := strings.Split(s, sep)
+		if len(parts) != 2 {
+			return time.Time{}, false
+		}
+		month, errM := strconv.Atoi(parts[0])
+		day, errD := strconv.Atoi(parts[1])
+		if errM != nil || errD != nil ||
+			month < 1 || month > 12 ||
+			day < 1 || day > 31 {
+			return time.Time{}, false
+		}
+		return time.Date(time.Now().Year(), time.Month(month), day, 0, 0, 0, 0, loc), true
+	}
+
+	isMention := func(tok string) bool {
+		return strings.HasPrefix(tok, "<@") && strings.HasSuffix(tok, ">")
+	}
+	mentionToID := func(tok string) string {
+		return strings.TrimSuffix(strings.TrimPrefix(tok, "<@"), ">")
+	}
+
+	// parse tokens after “birthday record”
+	if len(c.Fields) < 3 {
+		slack.SendMessage(c.Channel,
+			"usage: birthday record <MM-DD | YYYY-MM-DD> [@user] [force]")
+		return
+	}
+
+	targetUser := c.User // default to caller
+	var dateToken string
+	force := false
+	mentionSeen := false
+
+	for _, tok := range c.Fields[2:] {
+		switch {
+		case tok == "force":
+			force = true
+
+		case isMention(tok):
+			if mentionSeen {
+				slack.SendMessage(c.Channel,
+					"Please mention at most one user. usage: birthday record <MM-DD | YYYY-MM-DD> [force]")
+				return
+			}
+			targetUser = mentionToID(tok)
+			mentionSeen = true
+
+		default: // assume this is the date string
+			if dateToken == "" {
+				dateToken = tok
+			} else {
+				slack.SendMessage(c.Channel,
+					"Too many date tokens; please supply only one. usage: birthday record <MM-DD | YYYY-MM-DD> [force]")
+				return
+			}
 		}
 	}
 
-	if len(c.Fields) >= 3 {
-		newBirthday, err := dateparse.ParseAny(c.Fields[2])
+	if dateToken == "" {
+		slack.SendMessage(c.Channel, "Birthday date is missing")
+		return
+	}
+
+	// convert date string ➜ time.Time (midnight, current year)
+	var newBD time.Time
+	if bd, ok := parseMonthDay(dateToken); ok {
+		newBD = bd
+	} else {
+		var err error
+		newBD, err = dateparse.ParseAny(dateToken)
 		if err != nil {
-			go bj.logger.WithField("fields", c.Fields).WithError(err).Warn("cannot parse date")
-			slack.PostMessage(c.Channel, "cannot parse date: "+err.Error())
+			go bj.logger.WithField("fields", c.Fields).
+				WithError(err).Warn("cannot parse date")
+			slack.PostMessage(c.Channel, "cannot parse date. usage: birthday record <MM-DD | YYYY-MM-DD> [force] -- "+err.Error())
 			return
 		}
-		newBirthday = newBirthday.Truncate(24 * time.Hour).In(time.Now().Location())
+	}
+	newBD = newBD.Truncate(24 * time.Hour).In(loc)
 
-		b, err := db.ReadValue(append(bj.dbPath, "records"), c.User)
-		if err != nil {
-			bj.errorMsg(c, err, "cannot read existing birthday from db")
+	// db read / write
+	b, err := db.ReadValue(append(bj.dbPath, "records"), targetUser)
+	if err != nil {
+		bj.errorMsg(c, err, "cannot read existing birthday from db")
+		return
+	}
+
+	if b == nil || force {
+		// save / overwrite
+		byteBD, _ := newBD.MarshalJSON()
+		if err = db.AddValue(append(bj.dbPath, "records"), targetUser, byteBD); err != nil {
+			bj.errorMsg(c, err, "cannot record birthday to database")
 			return
 		}
+		slack.React(c.TimeStamp, c.Channel, "tada")
+		return
+	}
 
-		if b == nil || force {
-			b, err := newBirthday.MarshalJSON()
-			if err != nil {
-				bj.errorMsg(c, err, "cannot convert birthday into json")
-				return
-			}
-			err = db.AddValue(append(bj.dbPath, "records"), c.User, b)
-			if err != nil {
-				bj.errorMsg(c, err, "cannot record birthday to database")
-			}
+	// duplicate handling
+	var oldBD time.Time
+	if err = oldBD.UnmarshalJSON(b); err != nil {
+		bj.errorMsg(c, err, "cannot read existing birthday from db")
+		return
+	}
 
-			slack.React(c.TimeStamp, c.Channel, "tada")
-		} else {
-			var oldBirthday time.Time
-			err = oldBirthday.UnmarshalJSON(b)
-			if err != nil {
-				bj.errorMsg(c, err, "cannot read existing birthday from db")
-				return
-			}
-
-			if oldBirthday == newBirthday {
-				slack.SendMessage(c.Channel, "This birthday is already on record")
-			} else {
-				slack.SendMessage(c.Channel, "There is a different birthday already on record for you, please delete it before entering a new one")
-			}
-		}
+	if oldBD.Month() == newBD.Month() && oldBD.Day() == newBD.Day() {
+		slack.SendMessage(c.Channel, "This birthday is already on record")
+	} else {
+		slack.SendMessage(c.Channel,
+			"A different birthday is already on record; delete it first or use the 'force' flag")
 	}
 }
 
