@@ -99,7 +99,7 @@ func CreateHandler() (jh *JobHandler) {
 			}),
 		},
 		scheduling: scheduling.BirthdaySchedule{
-			BirthdayMessageChannel: "congratulations",
+			BirthdayMessageChannel: "birthday",
 			CronExp:                "0 8 * * *",
 			Logger: jobLogger.WithFields(log.Fields{
 				"jobtype": "bot",
